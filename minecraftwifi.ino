@@ -8,6 +8,7 @@
 #include <ESP8266WiFi.h>
 // https://arduinojson.org/v6/example/parser/
 #include <ArduinoJson.h>
+#include <Adafruit_NeoPixel.h>
 
 // Defines ssid, password, host, and url.
 #include "config.h"
@@ -19,12 +20,20 @@ StaticJsonDocument<MAX_JSON_SIZE> jsonDoc;
 int jsonBufferPos;
 char jsonBuffer[MAX_JSON_SIZE];
 
+#define NEO_PIXEL_PIN 14
+#define NUM_LEDS 9
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(
+    NUM_LEDS, NEO_PIXEL_PIN, NEO_GRB + NEO_KHZ800);
+const uint32_t COLOR_OFF = strip.Color(0, 0, 0);
+
 void setup() {
   pinMode(PIN_BUILTIN_LED, OUTPUT);
   digitalWrite(PIN_BUILTIN_LED, LOW); // The HUZZAH's builtin LED is inverted.
   delay(200);
   digitalWrite(PIN_BUILTIN_LED, HIGH);
   delay(100);
+
+  strip.begin();
 
   Serial.begin(115200);
   delay(100);
@@ -51,6 +60,14 @@ void setup() {
   Serial.println(WiFi.subnetMask());
   Serial.print(F("Gateway: "));
   Serial.println(WiFi.gatewayIP());
+
+  for (int i = 0; i <= NUM_LEDS; i++) {
+    for (int led = 0; led < NUM_LEDS; led++) {
+      strip.setPixelColor(0, led == i ? strip.Color(50, 255, 50) : COLOR_OFF);
+    }
+    strip.show();
+    delay(200);
+  }
 }
 
 void loop() {
@@ -114,10 +131,11 @@ void loop() {
     return;
   }
 
+  long numOnline = 0;
   if (jsonDoc["players"] == NULL) {
     Serial.println(F("Nobody online."));
   } else {
-    long numOnline = jsonDoc["players"]["online"];
+    numOnline = jsonDoc["players"]["online"];
     Serial.print(F("Online: "));
     Serial.println(numOnline);
     for (int i = 0; i < numOnline; i++) {
@@ -126,9 +144,15 @@ void loop() {
       digitalWrite(PIN_BUILTIN_LED, HIGH);
       delay(100);
     }
-    for (int i = 0; i < numOnline; i++) {
+    int sampleSize = jsonDoc["players"]["sample"].size();
+    for (int i = 0; i < sampleSize; i++) {
       const char* name = jsonDoc["players"]["sample"][i]["name"];
       Serial.println(name);
     }
   }
+
+  for (int i = 0; i < NUM_LEDS; i++) {
+    strip.setPixelColor(i, numOnline > i ? strip.Color(255, 255, 50) : COLOR_OFF);
+  }
+  strip.show();
 }
