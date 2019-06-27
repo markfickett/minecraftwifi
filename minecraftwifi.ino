@@ -26,14 +26,20 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(
     NUM_LEDS, NEO_PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 const uint32_t COLOR_OFF = strip.Color(0, 0, 0);
 
+void blink(int repeats) {
+  for(int i = 0; i < repeats; i++) {
+    digitalWrite(PIN_BUILTIN_LED, LOW); // The HUZZAH's builtin LED is inverted.
+    delay(50);
+    digitalWrite(PIN_BUILTIN_LED, HIGH);
+    delay(200);
+  }
+}
+
 void setup() {
   pinMode(PIN_BUILTIN_LED, OUTPUT);
-  digitalWrite(PIN_BUILTIN_LED, LOW); // The HUZZAH's builtin LED is inverted.
-  delay(200);
-  digitalWrite(PIN_BUILTIN_LED, HIGH);
-  delay(100);
+  blink(5);
 
-  strip.begin();
+  strip.begin(); // sets pin as OUTPUT
 
   Serial.begin(115200);
   delay(100);
@@ -138,12 +144,7 @@ void loop() {
     numOnline = jsonDoc["players"]["online"];
     Serial.print(F("Online: "));
     Serial.println(numOnline);
-    for (int i = 0; i < numOnline; i++) {
-      digitalWrite(PIN_BUILTIN_LED, LOW); // The HUZZAH's builtin LED is inverted.
-      delay(100);
-      digitalWrite(PIN_BUILTIN_LED, HIGH);
-      delay(100);
-    }
+    blink(numOnline);
     int sampleSize = jsonDoc["players"]["sample"].size();
     for (int i = 0; i < sampleSize; i++) {
       const char* name = jsonDoc["players"]["sample"][i]["name"];
