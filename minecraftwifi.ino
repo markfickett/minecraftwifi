@@ -1,8 +1,18 @@
 /*
  * Simple HTTP get webclient test
- * For Adafruit's HUZZAH ESP8266 breakout:
- * https://learn.adafruit.com/adafruit-huzzah-esp8266-breakout/overview
- * To upload, hold GPIO, then tap Reset.
+ * For Adafruit's HUZZAH ESP8266 breakout (which suports 2.4GHz only):
+ *     https://learn.adafruit.com/adafruit-huzzah-esp8266-breakout/overview
+ * To prepare for upload, hold GPIO, then tap Reset. After upload, tap reset again.
+ *
+ * A logic level shifter is not strictly required. A Sparkfun level shifter such as
+ *     https://www.sparkfun.com/products/retired/8745
+ * can be used to supply a 5v logic signal to the LED from the ESP's 3.3v logic output,
+ * however the WS2812 controllers seem to accept a 3.3v signal fine too.
+ *
+ * Program using a 5V USB FTDI to supply 5V to LEDs. Using a 3.3v FTDI works too, the
+ * LEDs are just dimmer and substantially redder.
+ *
+ * Tested with ESP board def v2.5.2 and NeoPixel library v1.2.3.
  */
 
 #include <ESP8266WiFi.h>
