@@ -156,15 +156,15 @@ struct ServerStatus fetchServerStatus() {
   }
 
   long numOnline = 0;
-  if (jsonDoc["players"] == NULL) {
+  if (jsonDoc[F("players")] == NULL) {
     Serial.println(F("Nobody online."));
     return ServerStatus::ofError();
   } else {
-    numOnline = jsonDoc["players"]["online"];
+    numOnline = jsonDoc[F("players")][F("online")];
     Serial.print(F("Online: "));
     Serial.println(numOnline);
     struct ServerStatus status(false, numOnline);
-    status.playersSample = jsonDoc["players"]["sample"];
+    status.playersSample = jsonDoc[F("players")][F("sample")];
     return status;
   }
 }
@@ -192,7 +192,7 @@ void loop() {
     blink(status.numOnline);
 
     for (int i = 0; i < status.playersSample.size(); i++) {
-      const char* name = status.playersSample[i]["name"];
+      const char* name = status.playersSample[i][F("name")];
       Serial.println(name);
     }
 
