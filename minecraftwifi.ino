@@ -20,8 +20,12 @@
 #include <ArduinoJson.h>
 #include <Adafruit_NeoPixel.h>
 
-// Defines ssid, password, host, and url.
-#include "config.h"
+// Defines:
+// const char* ssid = "my WiFi SSID";
+// const char* password = "my WiFi password";
+// const char* host = "minecraft.server.host.com";
+// const char* url = "/path/for/status"; // which returns JSON
+#include "network.h"
 
 #define PIN_BUILTIN_LED 0
 
@@ -40,6 +44,62 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(
 const uint32_t COLOR_OFF = strip.Color(0, 0, 0);
 const uint32_t COLOR_CONNECTED = strip.Color(0, 50, 100);
 const uint32_t COLOR_ERROR = strip.Color(255, 0, 0);
+uint32_t COLOR_ONLINE = strip.Color(200, 200, 200);
+uint32_t COLOR_JOINED = strip.Color(100, 200, 255);
+uint32_t COLOR_LEFT = strip.Color(255, 80, 80);
+
+/**
+ * Controls the color of an LED associated with a player's online state.
+ * Tracks the historical online state so transitions can have separate colors.
+ */
+class PlayerLed {
+  private:
+    // The empty string as a name is treated as a wildcard.
+    char name[32];
+    // was online last cycle
+    boolean wasOnline;
+    // is known to be online this cycle
+    boolean isOnline;
+  public:
+    PlayerLed(const char* iName) {
+      strcpy(name, iName);
+      wasOnline = false;
+      isOnline = false;
+    }
+
+    boolean matches(const char* str) {
+      return strlen(name) == 0 || strcmp(str, name) == 0;
+    }
+
+    void clearOnline() {
+      isOnline = false;
+    }
+
+    void setOnline() {
+      isOnline = true;
+    }
+
+    uint32_t getColorAndUpdate() {
+      uint32_t color;
+      if (wasOnline && isOnline) {
+        color = COLOR_ONLINE;
+      } else if (wasOnline && !isOnline) {
+        color = COLOR_JOINED;
+      } else if (!wasOnline && isOnline) {
+        color = COLOR_LEFT;
+      } else {
+        color = COLOR_OFF;
+      }
+      wasOnline = isOnline;
+      return color;
+    }
+};
+
+// Must define NUM_PLAYERS and
+// PlayerLed players[NUM_PLAYERS] = {PlayerLed("name1"), ..., PlayerLed("")};
+// If the number of initializations here does not match NUM_PLAYERS, the compiler
+// will attempt to use the default constructor for any extras required.
+#include "players.h"
 
 void blink(int repeats) {
   for(int i = 0; i < repeats; i++) {
@@ -71,7 +131,7 @@ void connectWifiAndPrintConnectionInfo() {
   Serial.println(WiFi.gatewayIP());
 }
 
-/** Run a spot of this color along the LED strip. */
+/** Run a spot of this color along the LED strip (for startup/error display). */
 void strobeColor(uint32_t color) {
   for (int i = 0; i <= NUM_LEDS; i++) {
     strip.setPixelColor(i, color);
@@ -82,6 +142,9 @@ void strobeColor(uint32_t color) {
   strip.show();
 }
 
+/**
+ * Minecraft server status container.
+ */
 struct ServerStatus {
   boolean error;
   int numOnline;
@@ -96,6 +159,9 @@ struct ServerStatus {
   }
 };
 
+/**
+ * Fetch status and parse JSON.
+ */
 struct ServerStatus fetchServerStatus() {
   Serial.print(F("connecting to "));
   Serial.println(host);
@@ -179,7 +245,6 @@ void setup() {
   delay(100);
 
   connectWifiAndPrintConnectionInfo();
-
   strobeColor(COLOR_CONNECTED);
 }
 
@@ -191,13 +256,28 @@ void loop() {
   } else {
     blink(status.numOnline);
 
+    // Set the "online" state for (only) players online now.
+    for (int p = 0; p < NUM_PLAYERS; p++) {
+      players[p].clearOnline();
+    }
     for (int i = 0; i < status.playersSample.size(); i++) {
       const char* name = status.playersSample[i][F("name")];
       Serial.println(name);
+      // NUM_PLAYERS * playersSample.size() should be small, so just do linear search.
+      for (int p = 0; p < NUM_PLAYERS; p++) {
+        if (players[p].matches(name)) {
+          players[p].setOnline();
+          break;
+        }
+      }
     }
-
+    // Update LED colors based on player state.
     for (int i = 0; i < NUM_LEDS; i++) {
-      strip.setPixelColor(i, status.numOnline > i ? strip.Color(255, 255, 50) : COLOR_OFF);
+      if (i < NUM_PLAYERS) {
+        strip.setPixelColor(i, players[i].getColorAndUpdate());
+      } else {
+        strip.setPixelColor(i, COLOR_OFF);
+      }
     }
     strip.show();
   }
