@@ -25,8 +25,11 @@
 
 #define PIN_BUILTIN_LED 0
 
+#define FETCH_PERIOD_MS 5000
 #define MAX_JSON_SIZE 1024
 StaticJsonDocument<MAX_JSON_SIZE> jsonDoc;
+// default value for the ServerStatus JsonArray ref
+JsonArray emptyArray = jsonDoc.to<JsonArray>();
 int jsonBufferPos;
 char jsonBuffer[MAX_JSON_SIZE];
 
@@ -35,6 +38,8 @@ char jsonBuffer[MAX_JSON_SIZE];
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(
     NUM_LEDS, NEO_PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 const uint32_t COLOR_OFF = strip.Color(0, 0, 0);
+const uint32_t COLOR_CONNECTED = strip.Color(0, 50, 100);
+const uint32_t COLOR_ERROR = strip.Color(255, 0, 0);
 
 void blink(int repeats) {
   for(int i = 0; i < repeats; i++) {
@@ -45,20 +50,8 @@ void blink(int repeats) {
   }
 }
 
-void setup() {
-  pinMode(PIN_BUILTIN_LED, OUTPUT);
-  blink(5);
-
-  strip.begin(); // sets pin as OUTPUT
-
-  Serial.begin(115200);
-  delay(100);
-
-  // We start by connecting to a WiFi network
-
-  Serial.println();
-  Serial.println();
-  Serial.print(F("Connecting to "));
+void connectWifiAndPrintConnectionInfo() {
+  Serial.print(F("\n\nConnecting to "));
   Serial.println(ssid);
 
   WiFi.begin(ssid, password);
@@ -76,19 +69,34 @@ void setup() {
   Serial.println(WiFi.subnetMask());
   Serial.print(F("Gateway: "));
   Serial.println(WiFi.gatewayIP());
-
-  for (int i = 0; i <= NUM_LEDS; i++) {
-    for (int led = 0; led < NUM_LEDS; led++) {
-      strip.setPixelColor(0, led == i ? strip.Color(50, 255, 50) : COLOR_OFF);
-    }
-    strip.show();
-    delay(200);
-  }
 }
 
-void loop() {
-  delay(5000);
+/** Run a spot of this color along the LED strip. */
+void strobeColor(uint32_t color) {
+  for (int i = 0; i <= NUM_LEDS; i++) {
+    strip.setPixelColor(i, color);
+    strip.show();
+    delay(200);
+    strip.setPixelColor(i, COLOR_OFF);
+  }
+  strip.show();
+}
 
+struct ServerStatus {
+  boolean error;
+  int numOnline;
+  // The array is owned by the JsonDocument.
+  JsonArray& playersSample;
+
+  ServerStatus(boolean err, int num):
+    error(err), numOnline(num), playersSample(emptyArray) {}
+
+  static struct ServerStatus ofError() {
+    return ServerStatus(true, 0);
+  }
+};
+
+struct ServerStatus fetchServerStatus() {
   Serial.print(F("connecting to "));
   Serial.println(host);
 
@@ -97,7 +105,7 @@ void loop() {
   const int httpPort = 80;
   if (!client.connect(host, httpPort)) {
     Serial.println(F("connection failed"));
-    return;
+    return ServerStatus::ofError();
   }
 
   // We now create a URI for the request
@@ -119,7 +127,7 @@ void loop() {
   jsonBufferPos = 0;
   while(client.available()){
     // Only parse things within at least some braces as JSON, to skip HTTP headers etc.
-    char b = (char) client.read(); // OK to cast byte to char b/c available protects from EOF
+    char b = (char) client.read(); // OK to cast byte to char b/c available() protects from EOF
     if (b == '{') {
       inBraces++;
     }
@@ -128,7 +136,7 @@ void loop() {
       jsonBuffer[jsonBufferPos++] = b;
       if (jsonBufferPos >= MAX_JSON_SIZE) {
         Serial.println(F("Ran out of room for JSON."));
-        break;
+        return ServerStatus::ofError();
       }
     }
     if (b == '}') {
@@ -144,26 +152,55 @@ void loop() {
   if (error) {
     Serial.print(F("deserializeJson() failed: "));
     Serial.println(error.c_str());
-    return;
+    return ServerStatus::ofError();
   }
 
   long numOnline = 0;
   if (jsonDoc["players"] == NULL) {
     Serial.println(F("Nobody online."));
+    return ServerStatus::ofError();
   } else {
     numOnline = jsonDoc["players"]["online"];
     Serial.print(F("Online: "));
     Serial.println(numOnline);
-    blink(numOnline);
-    int sampleSize = jsonDoc["players"]["sample"].size();
-    for (int i = 0; i < sampleSize; i++) {
-      const char* name = jsonDoc["players"]["sample"][i]["name"];
+    struct ServerStatus status(false, numOnline);
+    status.playersSample = jsonDoc["players"]["sample"];
+    return status;
+  }
+}
+
+void setup() {
+  pinMode(PIN_BUILTIN_LED, OUTPUT);
+  blink(5);
+
+  strip.begin(); // includes setting NEO_PIXEL_PIN as OUTPUT
+
+  Serial.begin(115200);
+  delay(100);
+
+  connectWifiAndPrintConnectionInfo();
+
+  strobeColor(COLOR_CONNECTED);
+}
+
+void loop() {
+  struct ServerStatus status = fetchServerStatus();
+
+  if (status.error) {
+    strobeColor(COLOR_ERROR);
+  } else {
+    blink(status.numOnline);
+
+    for (int i = 0; i < status.playersSample.size(); i++) {
+      const char* name = status.playersSample[i]["name"];
       Serial.println(name);
     }
+
+    for (int i = 0; i < NUM_LEDS; i++) {
+      strip.setPixelColor(i, status.numOnline > i ? strip.Color(255, 255, 50) : COLOR_OFF);
+    }
+    strip.show();
   }
 
-  for (int i = 0; i < NUM_LEDS; i++) {
-    strip.setPixelColor(i, numOnline > i ? strip.Color(255, 255, 50) : COLOR_OFF);
-  }
-  strip.show();
+  delay(FETCH_PERIOD_MS);
 }
