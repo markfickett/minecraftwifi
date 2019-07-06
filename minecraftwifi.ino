@@ -31,6 +31,7 @@
 
 #define FETCH_PERIOD_MS 5000
 #define MAX_JSON_SIZE 1024
+#define CONNECTION_RETRIES 3
 StaticJsonDocument<MAX_JSON_SIZE> jsonDoc;
 // default value for the ServerStatus JsonArray ref
 JsonArray emptyArray = jsonDoc.to<JsonArray>();
@@ -180,15 +181,21 @@ struct ServerStatus {
  * Fetch status and parse JSON.
  */
 struct ServerStatus fetchServerStatus() {
-  Serial.print(F("connecting to "));
-  Serial.println(host);
-
   // Use WiFiClient class to create TCP connections
   WiFiClient client;
   const int httpPort = 80;
-  if (!client.connect(host, httpPort)) {
-    Serial.println(F("connection failed"));
-    return ServerStatus::ofError();
+  int retries = CONNECTION_RETRIES;
+  while (true) {
+    Serial.print(F("connecting to "));
+    Serial.println(host);
+    if (client.connect(host, httpPort)) {
+      break;
+    } else {
+      Serial.println(F("connection failed"));
+      if (--retries <= 0) {
+        return ServerStatus::ofError();
+      }
+    }
   }
 
   // We now create a URI for the request
