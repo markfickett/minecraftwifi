@@ -42,7 +42,8 @@ char jsonBuffer[MAX_JSON_SIZE];
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(
     NUM_LEDS, NEO_PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 const uint32_t COLOR_OFF = strip.Color(0, 0, 0);
-const uint32_t COLOR_CONNECTED = strip.Color(0, 50, 100);
+const uint32_t COLOR_CONNECTING = strip.Color(0, 50, 100);
+const uint32_t COLOR_CONNECTED = strip.Color(0, 100, 0);
 const uint32_t COLOR_ERROR = strip.Color(255, 0, 0);
 uint32_t COLOR_ONLINE = strip.Color(200, 200, 200);
 uint32_t COLOR_JOINED = strip.Color(10, 100, 200);
@@ -60,6 +61,14 @@ class PlayerLed {
     boolean wasOnline;
     // is known to be online this cycle
     boolean isOnline;
+
+    void printName() {
+      if (strlen(name) > 0) {
+        Serial.print(name);
+      } else {
+        Serial.print(F("<unknown player>"));
+      }
+    }
   public:
     PlayerLed(const char* iName) {
       strcpy(name, iName);
@@ -85,11 +94,11 @@ class PlayerLed {
         color = COLOR_ONLINE;
       } else if (wasOnline && !isOnline) {
         color = COLOR_LEFT;
-        Serial.print(name);
+        printName();
         Serial.println(F(" left."));
       } else if (!wasOnline && isOnline) {
         color = COLOR_JOINED;
-        Serial.print(name);
+        printName();
         Serial.println(F(" joined."));
       } else {
         color = COLOR_OFF;
@@ -99,18 +108,22 @@ class PlayerLed {
     }
 };
 
-// Must define NUM_PLAYERS and
-// PlayerLed players[NUM_PLAYERS] = {PlayerLed("name1"), ..., PlayerLed("")};
-// If the number of initializations here does not match NUM_PLAYERS, the compiler
-// will attempt to use the default constructor for any extras required.
+// There must be a players.h with
+//     #define NUM_PLAYERS
+// and
+//     PlayerLed players[NUM_PLAYERS] = {PlayerLed("name1"), ..., PlayerLed("" /* wildcard */)};
+// If the number of PlayerLed initializations does not match NUM_PLAYERS, the compiler
+// will attempt to use the default constructor for any extras required and thus fail.
 #include "players.h"
+static_assert(NUM_PLAYERS <= NUM_LEDS, "Not enough LEDs for all players.");
 
 void blink(int repeats) {
   for(int i = 0; i < repeats; i++) {
-    digitalWrite(PIN_BUILTIN_LED, LOW); // The HUZZAH's builtin LED is inverted.
-    delay(50);
+    // The HUZZAH's builtin LED is inverted. (The other pins are normal.)
+    digitalWrite(PIN_BUILTIN_LED, LOW);
+    delay(10);
     digitalWrite(PIN_BUILTIN_LED, HIGH);
-    delay(200);
+    delay(100);
   }
 }
 
@@ -246,8 +259,8 @@ void setup() {
   strip.begin(); // includes setting NEO_PIXEL_PIN as OUTPUT
 
   Serial.begin(115200);
-  delay(100);
 
+  strobeColor(COLOR_CONNECTING);
   connectWifiAndPrintConnectionInfo();
   strobeColor(COLOR_CONNECTED);
 }
