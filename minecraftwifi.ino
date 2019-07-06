@@ -45,8 +45,8 @@ const uint32_t COLOR_OFF = strip.Color(0, 0, 0);
 const uint32_t COLOR_CONNECTED = strip.Color(0, 50, 100);
 const uint32_t COLOR_ERROR = strip.Color(255, 0, 0);
 uint32_t COLOR_ONLINE = strip.Color(200, 200, 200);
-uint32_t COLOR_JOINED = strip.Color(100, 200, 255);
-uint32_t COLOR_LEFT = strip.Color(255, 80, 80);
+uint32_t COLOR_JOINED = strip.Color(10, 100, 200);
+uint32_t COLOR_LEFT = strip.Color(255, 10, 10);
 
 /**
  * Controls the color of an LED associated with a player's online state.
@@ -84,9 +84,13 @@ class PlayerLed {
       if (wasOnline && isOnline) {
         color = COLOR_ONLINE;
       } else if (wasOnline && !isOnline) {
-        color = COLOR_JOINED;
-      } else if (!wasOnline && isOnline) {
         color = COLOR_LEFT;
+        Serial.print(name);
+        Serial.println(F(" left."));
+      } else if (!wasOnline && isOnline) {
+        color = COLOR_JOINED;
+        Serial.print(name);
+        Serial.println(F(" joined."));
       } else {
         color = COLOR_OFF;
       }
