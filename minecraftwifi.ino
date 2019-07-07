@@ -1,5 +1,7 @@
-/*
- * Simple HTTP get webclient test
+/**
+ * Fetch Minecraft server status over WiFi, and display which players are online
+ * using NeoPixel addressable RGB LEDs.
+ *
  * For Adafruit's HUZZAH ESP8266 breakout (which suports 2.4GHz only):
  *     https://learn.adafruit.com/adafruit-huzzah-esp8266-breakout/overview
  * To prepare for upload, hold GPIO, then tap Reset. After upload, tap reset again.
@@ -13,6 +15,10 @@
  * LEDs are just dimmer and substantially redder.
  *
  * Tested with ESP board def v2.5.2 and NeoPixel library v1.2.3.
+ *
+ * Minecraft servers don't directly respond to HTTP, they have their own
+ * protocol. This depends on a proxy which responds over HTTP with simple JSON
+ * such as github.com/markfickett/minecraftstatus/blob/master/mcstatusproxy.cgi
  */
 
 #include <ESP8266WiFi.h>
