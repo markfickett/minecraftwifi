@@ -39,16 +39,13 @@ int jsonBufferPos;
 char jsonBuffer[MAX_JSON_SIZE];
 
 #define NEO_PIXEL_PIN 14
-#define NUM_LEDS 9
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(
-    NUM_LEDS, NEO_PIXEL_PIN, NEO_GRB + NEO_KHZ800);
-const uint32_t COLOR_OFF = strip.Color(0, 0, 0);
-const uint32_t COLOR_CONNECTING = strip.Color(0, 50, 100);
-const uint32_t COLOR_CONNECTED = strip.Color(0, 100, 0);
-const uint32_t COLOR_ERROR = strip.Color(255, 0, 0);
-uint32_t COLOR_ONLINE = strip.Color(200, 200, 200);
-uint32_t COLOR_JOINED = strip.Color(10, 100, 200);
-uint32_t COLOR_LEFT = strip.Color(255, 10, 10);
+const uint32_t COLOR_OFF = Adafruit_NeoPixel::Color(0, 0, 0);
+const uint32_t COLOR_CONNECTING = Adafruit_NeoPixel::Color(0, 50, 100);
+const uint32_t COLOR_CONNECTED = Adafruit_NeoPixel::Color(0, 100, 0);
+const uint32_t COLOR_ERROR = Adafruit_NeoPixel::Color(255, 0, 0);
+uint32_t COLOR_ONLINE = Adafruit_NeoPixel::Color(200, 200, 200);
+uint32_t COLOR_JOINED = Adafruit_NeoPixel::Color(10, 100, 200);
+uint32_t COLOR_LEFT = Adafruit_NeoPixel::Color(255, 10, 10);
 
 /**
  * Controls the color of an LED associated with a player's online state.
@@ -110,13 +107,17 @@ class PlayerLed {
 };
 
 // There must be a players.h with
-//     #define NUM_PLAYERS
+//     #define NUM_PLAYERS ??
+//     #define NUM_LEDS ??
 // and
 //     PlayerLed players[NUM_PLAYERS] = {PlayerLed("name1"), ..., PlayerLed("" /* wildcard */)};
 // If the number of PlayerLed initializations does not match NUM_PLAYERS, the compiler
 // will attempt to use the default constructor for any extras required and thus fail.
 #include "players.h"
 static_assert(NUM_PLAYERS <= NUM_LEDS, "Not enough LEDs for all players.");
+
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(
+    NUM_LEDS, NEO_PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
 void blink(int repeats) {
   for(int i = 0; i < repeats; i++) {
