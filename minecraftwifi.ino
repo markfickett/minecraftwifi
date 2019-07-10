@@ -38,6 +38,8 @@
 #define FETCH_PERIOD_MS 5000
 #define MAX_JSON_SIZE 1024
 #define CONNECTION_RETRIES 3
+#define MAX_RESPONSE_WAIT_TIME_MS 30000
+#define RESPONSE_WAIT_INTERVAL_MS 100
 StaticJsonDocument<MAX_JSON_SIZE> jsonDoc;
 // default value for the ServerStatus JsonArray ref
 JsonArray emptyArray = jsonDoc.to<JsonArray>();
@@ -214,9 +216,15 @@ struct ServerStatus fetchServerStatus() {
                "Host: " + host + "\r\n" +
                "Connection: close\r\n\r\n");
   Serial.println(F("Waiting for response."));
+  int waitMs = MAX_RESPONSE_WAIT_TIME_MS;
   while(!client.available()) {
     Serial.print(".");
-    delay(100);
+    delay(RESPONSE_WAIT_INTERVAL_MS);
+    waitMs -= RESPONSE_WAIT_INTERVAL_MS;
+    if (waitMs <= 0) {
+      Serial.println(F("\nNo response."));
+      return ServerStatus::ofError();
+    }
   }
   Serial.println(F("\nResponse arriving."));
 
