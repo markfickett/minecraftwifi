@@ -19,6 +19,10 @@
  * Minecraft servers don't directly respond to HTTP, they have their own
  * protocol. This depends on a proxy which responds over HTTP with simple JSON
  * such as github.com/markfickett/minecraftstatus/blob/master/mcstatusproxy.cgi
+ * A direct UDP implementation of the Minecraft server status protocol is
+ * available in https://github.com/copethomas/Arduino-Minecraft-Monitor
+ * which might be adapted to use ESP8266's WiFiUdp:
+ * https://arduino-esp8266.readthedocs.io/en/latest/esp8266wifi/udp-examples.html
  */
 
 #include <ESP8266WiFi.h>
